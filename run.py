@@ -39,6 +39,8 @@ def main():
     slam = NICE_SLAM(cfg, args)
 
     slam.run()
+    torch.save(slam.mapper.decoders, 'decoders.pth')
+    np.save('c.npy', slam.shared_c)
 
 
 if __name__ == '__main__':
