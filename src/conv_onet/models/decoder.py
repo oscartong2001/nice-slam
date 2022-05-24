@@ -3,6 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from src.common import normalize_3d_coordinate
 
+device = 'cuda:1'
+
 
 class GaussianFourierFeatureTransform(torch.nn.Module):
     """
@@ -170,7 +172,7 @@ class MLP(nn.Module):
         p_nor = p_nor.unsqueeze(0)
         vgrid = p_nor[:, :, None, None].float()
         # acutally trilinear interpolation if mode = 'bilinear'
-        c = F.grid_sample(c, vgrid, padding_mode='border', align_corners=True,
+        c = F.grid_sample(c.to(device), vgrid, padding_mode='border', align_corners=True,
                           mode=self.sample_mode).squeeze(-1).squeeze(-1)
         return c
 
@@ -190,8 +192,11 @@ class MLP(nn.Module):
 
         embedded_pts = self.embedder(p)
         h = embedded_pts
+        self.pts_linears = self.pts_linears.to(device)
+        self.fc_c = self.fc_c.to(device)
+        self.output_linear = self.output_linear.to(device)
         for i, l in enumerate(self.pts_linears):
-            h = self.pts_linears[i](h)
+            h = self.pts_linears[i](h.to(device))
             h = F.relu(h)
             if self.c_dim != 0:
                 h = h + self.fc_c[i](c)
@@ -334,6 +339,7 @@ class NICE(nn.Module):
             raw[..., -1] = fine_occ+middle_occ
             return raw
         elif stage == 'color':
+            p = p.to(device)
             fine_occ = self.fine_decoder(p, c_grid)
             raw = self.color_decoder(p, c_grid)
             middle_occ = self.middle_decoder(p, c_grid)
